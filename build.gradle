@@ -47,13 +47,14 @@ tasks.register("writeTargetManifest") {
     description = "Writes the configured mod ID and targets for local scripts."
     def manifestFile = layout.buildDirectory.file("target-manifest.json")
     inputs.property("modId", rootProject.mod_id)
+    inputs.property("version", rootProject.mod_version)
     inputs.property("targets", targets.keySet().toList())
     outputs.file(manifestFile)
     doLast {
         def output = manifestFile.get().asFile
         output.parentFile.mkdirs()
         output.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(
-            [modId: rootProject.mod_id, targets: targets.keySet().toList()]
+            [modId: rootProject.mod_id, version: rootProject.mod_version, targets: targets.keySet().toList()]
         )), "UTF-8")
     }
 }

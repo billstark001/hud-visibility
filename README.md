@@ -76,3 +76,10 @@ These narrow hooks are intended to reduce shader conflicts. **Iris/Sodium/shader
 Third-party mods that replace these producers or draw their own overlays may need separate integration.
 
 Based on [billstark001/multi-version-loader-example-mod](https://github.com/billstark001/multi-version-loader-example-mod). MIT license; upstream notices retained.
+
+## CI and releases
+
+CI checks workflow syntax, the Gradle wrapper, unit tests, all eight builds, Mixin targets, metadata, translations and release packaging.
+Tagging `v<mod_version>` publishes a GitHub Release with the eight matching JARs, SHA-256 checksums and a source/artifact manifest.
+Modrinth publishing is an explicit option on a manual release run; configure `MODRINTH_PROJECT_ID` and `MODRINTH_TOKEN` first.
+See [docs/RELEASING.md](docs/RELEASING.md) for validation, tagging and retry instructions.

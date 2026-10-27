@@ -9,11 +9,24 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
-    runs-on: ubuntu-latest
+  workflows:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - name: Lint workflows
+        uses: docker://rhysd/actionlint:1.7.12
+
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: gradle/actions/wrapper-validation@v6
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -21,9 +34,24 @@ jobs:
             21
             25
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew testAll verifyArtifacts --no-parallel --stacktrace
+      - name: Test release validation
+        run: python3 -m unittest discover -s tests/release -v
+      - name: Test and verify all eight targets
+        run: ./gradlew testAll collectArtifacts writeTargetManifest --no-parallel --stacktrace
+      - name: Verify release packaging
+        run: python3 scripts/prepare-release.py
       - uses: actions/upload-artifact@v7
         with:
-          name: mod-jars
-          path: versions/*/build/libs/*.jar
+          name: hud-visibility-${{ github.sha }}
+          path: build/release/
           if-no-files-found: error
+          retention-days: 14
+      - name: Capture unit test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: |
+            tests/unit/build/test-results/test/
+            tests/unit/build/reports/tests/test/
+          if-no-files-found: ignore

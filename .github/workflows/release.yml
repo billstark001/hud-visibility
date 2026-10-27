@@ -1,16 +1,45 @@
-name: Build release bundle
+name: Release
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish or retry (for example, v0.1.0)"
+        required: true
+        type: string
+      publish_modrinth:
+        description: "Also publish the eight Modrinth versions after GitHub succeeds"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
-  bundle:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.bundle.outputs.version }}
+      tag: ${{ steps.bundle.outputs.tag }}
+      release_name: ${{ steps.bundle.outputs.release_name }}
+      channel: ${{ steps.bundle.outputs.channel }}
+      prerelease: ${{ steps.bundle.outputs.prerelease }}
+      matrix: ${{ steps.bundle.outputs.matrix }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+      - uses: gradle/actions/wrapper-validation@v6
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -18,9 +47,90 @@ jobs:
             21
             25
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew testAll collectArtifacts --no-parallel --stacktrace
+      - name: Test release validation
+        run: python3 -m unittest discover -s tests/release -v
+      - name: Build and verify all targets once
+        run: ./gradlew testAll collectArtifacts writeTargetManifest --no-parallel --stacktrace
+      - name: Validate tag, changelog, matrix and release bundle
+        id: bundle
+        run: python3 scripts/prepare-release.py --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@v7
         with:
-          name: release-bundle
-          path: build/distributions/*.jar
+          name: release-${{ steps.bundle.outputs.tag }}
+          path: build/release/
           if-no-files-found: error
+          retention-days: 14
+      - name: Capture unit test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-test-reports-${{ github.run_id }}
+          path: |
+            tests/unit/build/test-results/test/
+            tests/unit/build/reports/tests/test/
+          if-no-files-found: ignore
+
+  publish-github:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ needs.build.outputs.tag }}
+          path: build/release
+      - name: Verify artifact checksums
+        working-directory: build/release
+        run: sha256sum --check SHA256SUMS
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.release_name }}
+          body_path: build/release/release-notes.md
+          prerelease: ${{ needs.build.outputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            build/release/*.jar
+            build/release/SHA256SUMS
+            build/release/manifest.json
+
+  publish-modrinth:
+    needs: [build, publish-github]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_modrinth }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+    steps:
+      - name: Check Modrinth configuration
+        env:
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        shell: bash
+        run: |
+          test -n "$MODRINTH_PROJECT_ID" || { echo '::error::Set the MODRINTH_PROJECT_ID repository variable.'; exit 1; }
+          test -n "$MODRINTH_TOKEN" || { echo '::error::Set the MODRINTH_TOKEN repository secret.'; exit 1; }
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ needs.build.outputs.tag }}
+          path: build/release
+      - name: Verify artifact checksums
+        working-directory: build/release
+        run: sha256sum --check SHA256SUMS
+      - name: Publish Minecraft ${{ matrix.minecraft }} ${{ matrix.loader }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: build/release/${{ matrix.file }}
+          name: ${{ needs.build.outputs.release_name }} for Minecraft ${{ matrix.minecraft }} (${{ matrix.loader }})
+          version: ${{ needs.build.outputs.version }}+${{ matrix.minecraft }}-${{ matrix.loader }}
+          version-type: ${{ needs.build.outputs.channel }}
+          changelog-file: build/release/release-notes.md
+          game-versions: ${{ matrix.minecraft }}
+          game-version-filter: none
+          loaders: ${{ matrix.loader }}
+          environment: client
+          dependencies: ${{ matrix.dependencies }}
