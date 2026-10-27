@@ -27,7 +27,7 @@ tasks.withType(JavaCompile).configureEach {
 
 test {
     useJUnitPlatform()
-    systemProperty "exampleMod.projectRoot", rootProject.projectDir.absolutePath
+    systemProperty "hudVisibility.projectRoot", rootProject.projectDir.absolutePath
     testLogging {
         events "failed", "skipped"
         exceptionFormat "full"
