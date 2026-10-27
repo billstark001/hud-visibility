@@ -1,0 +1,21 @@
+{
+  "hud_visibility.config.title": "HUD 表示設定",
+  "hud_visibility.config.button": "HUD 表示設定",
+  "hud_visibility.category.with_hud": "HUD 表示中",
+  "hud_visibility.category.without_hud": "HUD 非表示中（F1）",
+  "hud_visibility.tooltip.allow": "オン：通常の条件を満たす内容を表示。オフ：非表示。F3+B / F3+G は手動で有効にしてください。",
+  "hud_visibility.feature.hitboxes": "エンティティの当たり判定（F3+B）",
+  "hud_visibility.tooltip.hitboxes": "F3+B の当たり判定、目の高さ、向きの線を制御します。",
+  "hud_visibility.feature.chunk_borders": "チャンクの境界（F3+G）",
+  "hud_visibility.tooltip.chunk_borders": "F3+G のチャンク境界線を制御します。",
+  "hud_visibility.feature.player_names": "プレイヤーの名前",
+  "hud_visibility.tooltip.player_names": "プレイヤー名とその下のスコアを含みます。チームと透明化の条件は維持されます。",
+  "hud_visibility.feature.entity_names": "その他のエンティティの名前",
+  "hud_visibility.tooltip.entity_names": "プレイヤーと text_display 以外のエンティティの名前です。",
+  "hud_visibility.feature.text_display_names": "テキスト表示エンティティの名前",
+  "hud_visibility.tooltip.text_display_names": "text_display の上に表示されるカスタム名です。本文とは別に設定できます。",
+  "hud_visibility.feature.text_displays": "テキスト表示エンティティの本文",
+  "hud_visibility.tooltip.text_displays": "text_display の本文と背景です。名前とは別に設定できます。",
+  "hud_visibility.feature.hands": "一人称の手と持っているアイテム",
+  "hud_visibility.tooltip.hands": "一人称の両手とアイテムを制御します。視点・睡眠・スペクテイターモードの条件は維持されます。"
+}

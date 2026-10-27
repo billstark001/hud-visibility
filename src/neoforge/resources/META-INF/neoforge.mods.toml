@@ -26,3 +26,10 @@ type="required"
 versionRange="${minecraftNeoRange}"
 ordering="NONE"
 side="BOTH"
+
+[[dependencies.${modId}]]
+modId="cloth_config"
+type="required"
+versionRange="[${clothVersion},)"
+ordering="AFTER"
+side="CLIENT"

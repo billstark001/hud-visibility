@@ -4,19 +4,35 @@
   "version": "${version}",
   "name": "${modName}",
   "description": "${modDescription}",
-  "authors": ["${modAuthor}"],
+  "authors": [
+    "${modAuthor}"
+  ],
   "license": "MIT",
   "icon": "assets/${modId}/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "main": ["${modGroup}.fabric.ExampleModFabric"],
-    "client": ["${modGroup}.fabric.ExampleModFabricClient"]
+    "main": [
+      "${modGroup}.fabric.HudVisibilityFabric"
+    ],
+    "client": [
+      "${modGroup}.fabric.HudVisibilityFabricClient"
+    ],
+    "modmenu": [
+      "${modGroup}.fabric.HudVisibilityModMenu"
+    ]
   },
-  "mixins": ["${modId}.mixins.json"],
+  "mixins": [
+    "${modId}.mixins.json"
+  ],
   "depends": {
     "fabricloader": "${fabricLoaderRange}",
     "fabric-api": "*",
     "minecraft": "${minecraftRange}",
-    "java": ">=${javaVersion}"
+    "java": ">=${javaVersion}",
+    "cloth-config": ">=${clothVersion}"
+  },
+  "contact": {
+    "sources": "https://github.com/billstark001/hud-visibility",
+    "issues": "https://github.com/billstark001/hud-visibility/issues"
   }
 }

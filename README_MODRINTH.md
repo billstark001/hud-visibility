@@ -1,12 +1,13 @@
-# Example Mod
+# HUD Visibility
 
-A starting point for a Minecraft mod supporting Fabric and NeoForge.
+Hide or keep individual world overlays and first-person hands when pressing F1, and configure the same features while the HUD is visible.
 
-Supported Minecraft versions: **1.21.1, 1.21.11, 26.2, and 26.3**.
+Independent switches for entity hitboxes (F3+B), chunk borders (F3+G), player names, other entity names, text-display custom names, text-display content, and hands with held items.
+The two F1 states have separate settings. Defaults allow normal rendering with the HUD visible and hide these features with F1.
+F3 toggle states are preserved. Octrees and other debug renderers are unaffected.
 
-Fabric builds require Fabric Loader and Fabric API. NeoForge builds require NeoForge.
-Choose the JAR matching both your Minecraft version and loader.
+Requires **Cloth Config**, plus **Fabric API** on Fabric. Configure through **Options → HUD Visibility**, Mod Menu, or NeoForge's Mods screen.
+Supports English, Simplified Chinese, Traditional Chinese, and Japanese.
 
-The main menu includes a **Template Info** button that shows the compiled Minecraft target, runtime version,
-and a PASS/FAIL check. It demonstrates version-specific APIs selected with `#if MC_VERSION`.
-Replace this description with your mod's features before publishing.
+Minecraft 1.21.1, 1.21.11, 26.2, and 26.3; Fabric and NeoForge. Install the exact matching artifact.
+Shader compatibility is designed around narrow geometry-generation hooks but has not been tested with Iris/Sodium or shader packs.

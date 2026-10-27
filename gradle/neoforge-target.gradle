@@ -27,3 +27,7 @@ neoForge {
         }
     }
 }
+
+dependencies {
+    implementation "me.shedaniel.cloth:cloth-config-neoforge:${target.clothConfig}"
+}

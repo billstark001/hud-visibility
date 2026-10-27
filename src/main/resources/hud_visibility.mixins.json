@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "${modGroup}.mixin",
+  "compatibilityLevel": "${mixinJava}",
+  "mixins": [],
+  "client": [
+    "OptionsScreenMixin",
+    "ChunkBorderMixin",
+    "HitboxMixin",
+    "EntityNamesMixin",
+    "LivingEntityNamesMixin",
+    "HandsMixin",
+    "TextDisplayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

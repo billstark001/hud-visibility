@@ -5,3 +5,5 @@ run/
 .idea/
 .vscode/
 *.iml
+
+*.log

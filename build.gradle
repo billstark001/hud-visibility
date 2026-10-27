@@ -63,7 +63,7 @@ tasks.register("localNeoForgeSmoke", Exec) {
     description = "Starts each NeoForge client and checks mod initialization."
     workingDir rootProject.projectDir
     commandLine "pwsh", "-NoProfile", "-File",
-        rootProject.file("scripts/run-local-neoforge-smoke.ps1").absolutePath
+        rootProject.file("scripts/run-local-neoforge-smoke.ps1").absolutePath, "-NestedGradle"
 }
 
 // Configure generated projects; no per-target build scripts are required.
@@ -99,7 +99,7 @@ def distributableJars = {
 
 tasks.register("verifyArtifacts") {
     group = "verification"
-    description = "Checks metadata, entrypoints, icons, and bytecode in all built JARs."
+    description = "Checks metadata, dependencies, mixins, translations and bytecode in all built JARs."
     dependsOn("buildAll")
     doLast {
         def require = { boolean condition, String message ->
@@ -114,7 +114,7 @@ tasks.register("verifyArtifacts") {
                     archive.getInputStream(entry).withCloseable { it.getText("UTF-8") }
                 }
                 def packagePath = rootProject.mod_group.replace(".", "/")
-                def commonClass = archive.getEntry("${packagePath}/ExampleMod.class")
+                def commonClass = archive.getEntry("${packagePath}/HudVisibility.class")
                 require(commonClass != null, "${artifact.file.name}: missing common initializer")
                 archive.getInputStream(commonClass).withCloseable { stream ->
                     def data = new DataInputStream(stream)
@@ -129,9 +129,22 @@ tasks.register("verifyArtifacts") {
                 def mixins = new JsonSlurper().parseText(readText("${rootProject.mod_id}.mixins.json"))
                 require(mixins.package == "${rootProject.mod_group}.mixin", "Incorrect Mixin package")
                 require(mixins.compatibilityLevel == artifact.target.mixinJava, "Incorrect Mixin Java level")
+                require(mixins.client.size() == 7, "Incorrect visibility Mixin count")
+                mixins.client.each { mixin ->
+                    require(archive.getEntry("${packagePath}/mixin/${mixin}.class") != null,
+                        "Missing Mixin: ${mixin}")
+                }
+                def english = new JsonSlurper().parseText(readText("assets/${rootProject.mod_id}/lang/en_us.json"))
+                ["zh_cn", "zh_tw", "ja_jp"].each { language ->
+                    def translated = new JsonSlurper().parseText(readText("assets/${rootProject.mod_id}/lang/${language}.json"))
+                    require(translated.keySet() == english.keySet(), "Incomplete translation: ${language}")
+                    require(translated.values().every { it instanceof String && !it.isBlank() }, "Empty translation: ${language}")
+                }
                 def expectedVersion = "${rootProject.mod_version}+${artifact.minecraft}-${artifact.loader}"
                 if (artifact.loader == "fabric") {
                     def metadata = new JsonSlurper().parseText(readText("fabric.mod.json"))
+                    require(metadata.environment == "client", "Fabric mod must be client-only")
+                    require(metadata.depends["cloth-config"] == ">=${artifact.target.clothConfig}", "Missing Cloth Config dependency")
                     require(metadata.id == rootProject.mod_id, "Incorrect Fabric mod ID")
                     require(metadata.version == expectedVersion, "Incorrect Fabric version")
                     require(metadata.depends.minecraft == artifact.target.minecraftRange, "Incorrect Fabric target")
@@ -146,8 +159,9 @@ tasks.register("verifyArtifacts") {
                     require(metadata.contains('version="' + expectedVersion + '"'), "Incorrect NeoForge version")
                     require(metadata.contains('versionRange="' + artifact.target.minecraftNeoRange + '"'),
                         "Incorrect NeoForge Minecraft target")
+                    require(metadata.contains('modId="cloth_config"'), "Missing Cloth Config dependency")
                     require(!metadata.contains('\${'), "Unexpanded NeoForge metadata")
-                    ["ExampleModNeoForge", "ExampleModNeoForgeClient"].each { entrypoint ->
+                    ["HudVisibilityNeoForge", "HudVisibilityNeoForgeClient"].each { entrypoint ->
                         require(archive.getEntry("${packagePath}/neoforge/${entrypoint}.class") != null,
                             "Missing NeoForge entrypoint: ${entrypoint}")
                     }

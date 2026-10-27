@@ -9,6 +9,8 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url = "https://maven.shedaniel.me/" }
+    maven { url = "https://maven.terraformersmc.com/releases/" }
 }
 
 sourceSets {
@@ -38,6 +40,7 @@ def resourceProperties = [
     neoForgeRange      : target.neoForgeRange,
     neoForgeIconProperty: target.preprocessorVersion >= 260300 ? "iconFile" : "logoFile",
     javaVersion        : target.javaVersion,
+    clothVersion       : target.clothConfig,
     mixinJava          : target.mixinJava
 ]
 
@@ -47,7 +50,7 @@ processResources {
         expand(resourceProperties)
     }
     // Keep the Mixin resource filename in sync when mod_id is customized.
-    rename { name -> name == "example_mod.mixins.json" ? "${rootProject.mod_id}.mixins.json" : name }
+    rename { name -> name == "hud_visibility.mixins.json" ? "${rootProject.mod_id}.mixins.json" : name }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -76,3 +79,4 @@ publishing {
 }
 
 apply from: rootProject.file("gradle/manifold.gradle")
+apply from: rootProject.file("gradle/verify-mixins.gradle")

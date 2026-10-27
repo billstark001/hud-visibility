@@ -1,0 +1,105 @@
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.Type
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.FieldInsnNode
+import org.objectweb.asm.tree.MethodInsnNode
+import java.util.zip.ZipFile
+
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath "org.ow2.asm:asm-tree:9.10.1" }
+}
+
+// Check against each loader's actual compile classpath, including NeoForge patches.
+tasks.register("verifyMixinTargets") {
+    group = "verification"
+    description = "Verifies every visibility injection target against this target's game bytecode."
+    dependsOn(tasks.named("compileJava"))
+    doLast {
+        def annotationValues = { annotation ->
+            def result = [:]
+            for (int i = 0; i < (annotation.values?.size() ?: 0); i += 2) {
+                result[annotation.values[i]] = annotation.values[i + 1]
+            }
+            result
+        }
+        def loadNode = { byte[] bytes ->
+            def node = new ClassNode()
+            new ClassReader(bytes).accept(node, 0)
+            node
+        }
+        def cache = [:]
+        def findClass = { String name ->
+            if (cache.containsKey(name)) return cache[name]
+            ClassNode found = null
+            for (File file : sourceSets.main.compileClasspath.files) {
+                if (file.isDirectory()) {
+                    def classFile = new File(file, name + ".class")
+                    if (classFile.isFile()) found = loadNode(classFile.bytes)
+                } else if (file.name.endsWith(".jar")) {
+                    new ZipFile(file).withCloseable { zip ->
+                        def entry = zip.getEntry(name + ".class")
+                        if (entry != null) found = loadNode(zip.getInputStream(entry).bytes)
+                    }
+                }
+                if (found != null) break
+            }
+            if (found == null) throw new GradleException("Missing Mixin target class: ${name}")
+            cache[name] = found
+            found
+        }
+        int count = 0
+        def packagePath = rootProject.mod_group.replace(".", "/")
+        fileTree(tasks.named("compileJava").get().destinationDirectory) {
+            include "${packagePath}/mixin/*.class"
+        }.each { file ->
+            def mixin = loadNode(file.bytes)
+            def declaration = (mixin.invisibleAnnotations ?: []).find { it.desc == "Lorg/spongepowered/asm/mixin/Mixin;" }
+            if (declaration == null) return
+            def targetTypes = annotationValues(declaration).value
+            targetTypes.each { Type type ->
+                def target = findClass(type.internalName)
+                mixin.methods.each { handler ->
+                    (handler.visibleAnnotations ?: []).findAll {
+                        it.desc.endsWith("/Inject;") || it.desc.endsWith("/ModifyExpressionValue;")
+                    }.each { injection ->
+                        def values = annotationValues(injection)
+                        values.method.each { String selector ->
+                            def methods = target.methods.findAll {
+                                selector.contains("(") ? it.name + it.desc == selector : it.name == selector
+                            }
+                            if (methods.isEmpty()) throw new GradleException("${mixin.name}: missing ${target.name}.${selector}")
+                            methods.each { method ->
+                                if ((method.access & 8) != (handler.access & 8)) {
+                                    throw new GradleException("${mixin.name}.${handler.name}: static modifier differs from ${selector}")
+                                }
+                            }
+                            def points = values.at instanceof List ? values.at : [values.at]
+                            points.each { point ->
+                                def at = annotationValues(point)
+                                if (at.value in ["INVOKE", "FIELD"]) {
+                                    boolean matched = methods.any { method ->
+                                        method.instructions.any { insn ->
+                                            if (at.value == "INVOKE" && insn instanceof MethodInsnNode) {
+                                                return "L${insn.owner};${insn.name}${insn.desc}" == at.target
+                                            }
+                                            if (at.value == "FIELD" && insn instanceof FieldInsnNode) {
+                                                return "L${insn.owner};${insn.name}:${insn.desc}" == at.target
+                                            }
+                                            false
+                                        }
+                                    }
+                                    if (!matched) throw new GradleException("${mixin.name}: missing ${at.value} ${at.target} in ${selector}")
+                                }
+                            }
+                            count++
+                        }
+                    }
+                }
+            }
+        }
+        if (count < 7) throw new GradleException("Expected all visibility injections, found ${count}")
+        logger.lifecycle("Verified ${count} visibility injection targets for ${project.name}")
+    }
+}
+tasks.named("check").configure { dependsOn("verifyMixinTargets") }

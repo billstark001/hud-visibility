@@ -1,0 +1,21 @@
+{
+  "hud_visibility.config.title": "HUD Visibility",
+  "hud_visibility.config.button": "HUD Visibility",
+  "hud_visibility.category.with_hud": "HUD visible",
+  "hud_visibility.category.without_hud": "HUD hidden (F1)",
+  "hud_visibility.tooltip.allow": "ON allows eligible content; OFF hides it. F3+B / F3+G must still be enabled manually.",
+  "hud_visibility.feature.hitboxes": "Entity hitboxes (F3+B)",
+  "hud_visibility.tooltip.hitboxes": "Allows F3+B hitboxes, eye-height and direction lines.",
+  "hud_visibility.feature.chunk_borders": "Chunk borders (F3+G)",
+  "hud_visibility.tooltip.chunk_borders": "Allows F3+G chunk border geometry.",
+  "hud_visibility.feature.player_names": "Player name tags",
+  "hud_visibility.tooltip.player_names": "Includes player names and below-name scores. Team and visibility rules still apply.",
+  "hud_visibility.feature.entity_names": "Other entity name tags",
+  "hud_visibility.tooltip.entity_names": "Names of entities other than players and text_display.",
+  "hud_visibility.feature.text_display_names": "Text display name tags",
+  "hud_visibility.tooltip.text_display_names": "The optional custom name above a text_display entity, separate from its text.",
+  "hud_visibility.feature.text_displays": "Text display content",
+  "hud_visibility.tooltip.text_displays": "The text and background of text_display entities, separate from their name tags.",
+  "hud_visibility.feature.hands": "First-person hands and items",
+  "hud_visibility.tooltip.hands": "Both first-person hands and held items. Respects camera, sleep and spectator mode."
+}

@@ -1,0 +1,21 @@
+{
+  "hud_visibility.config.title": "HUD 可见性",
+  "hud_visibility.config.button": "HUD 可见性",
+  "hud_visibility.category.with_hud": "HUD 显示时",
+  "hud_visibility.category.without_hud": "HUD 隐藏时（F1）",
+  "hud_visibility.tooltip.allow": "开启：允许显示符合原版条件的内容；关闭：隐藏。仍需手动开启 F3+B / F3+G。",
+  "hud_visibility.feature.hitboxes": "实体碰撞箱（F3+B）",
+  "hud_visibility.tooltip.hitboxes": "控制 F3+B 碰撞箱、眼高线和朝向线。",
+  "hud_visibility.feature.chunk_borders": "区块边界（F3+G）",
+  "hud_visibility.tooltip.chunk_borders": "控制 F3+G 区块边界绘制。",
+  "hud_visibility.feature.player_names": "玩家名称标签",
+  "hud_visibility.tooltip.player_names": "包含玩家名称和名称下方的计分板分数；仍遵循队伍和隐身规则。",
+  "hud_visibility.feature.entity_names": "其他实体名称标签",
+  "hud_visibility.tooltip.entity_names": "玩家和 text_display 以外的实体名称。",
+  "hud_visibility.feature.text_display_names": "文字展示实体名称标签",
+  "hud_visibility.tooltip.text_display_names": "text_display 上方可选的自定义名称，与正文独立。",
+  "hud_visibility.feature.text_displays": "文字展示实体正文",
+  "hud_visibility.tooltip.text_displays": "text_display 的文字正文及背景，与名称标签独立。",
+  "hud_visibility.feature.hands": "第一人称手部与物品",
+  "hud_visibility.tooltip.hands": "同时控制第一人称双手和手持物品；仍遵循视角、睡眠和旁观模式规则。"
+}
