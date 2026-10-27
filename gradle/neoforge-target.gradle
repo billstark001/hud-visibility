@@ -1,0 +1,29 @@
+def target = rootProject.ext.targets[project.ext.minecraftTarget]
+
+apply from: rootProject.file("gradle/common-target.gradle")
+
+neoForge {
+    // Use published game artifacts without local decompilation/recompilation.
+    enable {
+        version = target.neoForge
+        disableRecompilation = true
+    }
+    runs {
+        client {
+            client()
+            getIdeName().set("Minecraft Client NeoForge ${target.minecraft}")
+            jvmArguments.addAll(target.clientJvmArgs ?: [])
+            gameDirectory = rootProject.file("run/neoforge-${target.minecraft}")
+        }
+        server {
+            server()
+            getIdeName().set("Minecraft Server NeoForge ${target.minecraft}")
+            gameDirectory = rootProject.file("run/neoforge-${target.minecraft}-server")
+        }
+    }
+    mods {
+        "${rootProject.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}

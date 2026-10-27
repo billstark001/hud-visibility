@@ -1,0 +1,78 @@
+def target = rootProject.ext.targets[project.ext.minecraftTarget]
+
+group = rootProject.mod_group
+version = "${rootProject.mod_version}+${target.minecraft}-${project.ext.modLoader}"
+
+base {
+    archivesName = rootProject.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [
+            rootProject.file("src/main/java"),
+            rootProject.file("src/client/java"),
+            rootProject.file("src/${project.ext.modLoader}/java")
+        ]
+        resources.srcDirs = [
+            rootProject.file("src/main/resources"),
+            rootProject.file("src/${project.ext.modLoader}/resources")
+        ]
+    }
+}
+
+def resourceProperties = [
+    version            : project.version,
+    modId              : rootProject.mod_id,
+    modGroup           : rootProject.mod_group,
+    modName            : rootProject.mod_name,
+    modDescription     : rootProject.mod_description,
+    modAuthor          : rootProject.mod_author,
+    minecraftRange     : target.minecraftRange,
+    minecraftNeoRange  : target.minecraftNeoRange,
+    fabricLoaderRange  : ">=${rootProject.fabric_loader_min_version}",
+    neoForgeRange      : target.neoForgeRange,
+    neoForgeIconProperty: target.preprocessorVersion >= 260300 ? "iconFile" : "logoFile",
+    javaVersion        : target.javaVersion,
+    mixinJava          : target.mixinJava
+]
+
+processResources {
+    inputs.properties(resourceProperties)
+    filesMatching(["fabric.mod.json", "META-INF/neoforge.mods.toml", "*.mixins.json"]) {
+        expand(resourceProperties)
+    }
+    // Keep the Mixin resource filename in sync when mod_id is customized.
+    rename { name -> name == "example_mod.mixins.json" ? "${rootProject.mod_id}.mixins.json" : name }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = target.javaVersion
+}
+
+tasks.withType(Jar).configureEach {
+    from(rootProject.file("LICENSE"))
+}
+
+java {
+    withSourcesJar()
+    toolchain.languageVersion = JavaLanguageVersion.of(target.javaVersion)
+    sourceCompatibility = JavaVersion.toVersion(target.javaVersion)
+    targetCompatibility = JavaVersion.toVersion(target.javaVersion)
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = rootProject.archives_base_name
+            from components.java
+        }
+    }
+}
+
+apply from: rootProject.file("gradle/manifold.gradle")

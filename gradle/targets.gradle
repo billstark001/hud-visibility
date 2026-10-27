@@ -1,0 +1,53 @@
+// All build tasks and generated projects use this version matrix.
+ext.targets = [
+    "1.21.1": [
+        minecraft           : "1.21.1",
+        javaVersion         : 21,
+        fabricApi           : "0.116.17+1.21.1",
+        neoForge            : "21.1.262",
+        minecraftRange      : "1.21.1",
+        minecraftNeoRange   : "[1.21.1]",
+        neoForgeRange       : "[21.1.262,21.2)",
+        mixinJava           : "JAVA_21",
+        remappedFabric      : true,
+        preprocessorVersion : 12101
+    ],
+    "1.21.11": [
+        minecraft           : "1.21.11",
+        javaVersion         : 21,
+        fabricApi           : "0.141.4+1.21.11",
+        neoForge            : "21.11.44",
+        minecraftRange      : "1.21.11",
+        minecraftNeoRange   : "[1.21.11]",
+        neoForgeRange       : "[21.11.44,21.12)",
+        mixinJava           : "JAVA_21",
+        remappedFabric      : true,
+        preprocessorVersion : 12111
+    ],
+    "26.2": [
+        minecraft           : "26.2",
+        javaVersion         : 25,
+        fabricApi           : "0.152.2+26.2",
+        neoForge            : "26.2.0.37-beta",
+        minecraftRange      : "26.2",
+        minecraftNeoRange   : "[26.2]",
+        neoForgeRange       : "[26.2.0.37-beta,26.3)",
+        mixinJava           : "JAVA_25",
+        remappedFabric      : false,
+        preprocessorVersion : 260200
+    ],
+    "26.3": [
+        minecraft           : "26.3",
+        // Match the JVM arguments listed in the vanilla 26.3 client manifest.
+        clientJvmArgs       : ["-XX:StackShadowPages=32", "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED"],
+        javaVersion         : 25,
+        fabricApi           : "0.161.0+26.3",
+        neoForge            : "26.3.0.6-beta",
+        minecraftRange      : "26.3",
+        minecraftNeoRange   : "[26.3]",
+        neoForgeRange       : "[26.3.0.6-beta,26.4)",
+        mixinJava           : "JAVA_25",
+        remappedFabric      : false,
+        preprocessorVersion : 260300
+    ]
+]

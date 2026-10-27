@@ -1,0 +1,175 @@
+import groovy.json.JsonSlurper
+import java.util.zip.ZipFile
+
+plugins {
+    id "net.fabricmc.fabric-loom" version "${loom_version}" apply false
+    id "net.fabricmc.fabric-loom-remap" version "${loom_version}" apply false
+    id "net.neoforged.moddev" version "${moddev_version}" apply false
+}
+
+apply from: rootProject.file("gradle/targets.gradle")
+
+def fabricProjectPaths = targets.keySet().collect { ":versions:fabric-${it}" }
+def allProjectPaths = targets.keySet().collectMany { minecraft ->
+    ["fabric", "neoforge"].collect { loader -> ":versions:${loader}-${minecraft}" }
+}
+
+tasks.register("cleanIdeaRunConfigurations", Delete) {
+    group = "ide"
+    description = "Deletes generated Fabric configurations before IDEA recreates them."
+    delete fileTree(rootProject.file(".idea/runConfigurations")) {
+        include "Minecraft_Client.xml", "Minecraft_Server.xml"
+        include "Minecraft_Client_Fabric_*fabric-*.xml"
+        include "Minecraft_Server_Fabric_*fabric-*.xml"
+    }
+}
+
+tasks.register("syncIdeaRunConfigurations") {
+    group = "ide"
+    description = "Recreates IDEA run configurations for every Fabric target."
+    dependsOn(fabricProjectPaths.collect { "${it}:ideaSyncTask" })
+}
+
+tasks.register("buildAll") {
+    group = "build"
+    description = "Builds every configured Minecraft and loader target."
+    dependsOn(allProjectPaths.collect { "${it}:build" })
+}
+
+tasks.register("testAll") {
+    group = "verification"
+    description = "Runs the loader-neutral unit tests added under tests/unit."
+    dependsOn(":tests:unit:test")
+}
+
+tasks.register("writeTargetManifest") {
+    group = "help"
+    description = "Writes the configured mod ID and targets for local scripts."
+    def manifestFile = layout.buildDirectory.file("target-manifest.json")
+    inputs.property("modId", rootProject.mod_id)
+    inputs.property("targets", targets.keySet().toList())
+    outputs.file(manifestFile)
+    doLast {
+        def output = manifestFile.get().asFile
+        output.parentFile.mkdirs()
+        output.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(
+            [modId: rootProject.mod_id, targets: targets.keySet().toList()]
+        )), "UTF-8")
+    }
+}
+
+tasks.register("localNeoForgeSmoke", Exec) {
+    group = "verification"
+    description = "Starts each NeoForge client and checks mod initialization."
+    workingDir rootProject.projectDir
+    commandLine "pwsh", "-NoProfile", "-File",
+        rootProject.file("scripts/run-local-neoforge-smoke.ps1").absolutePath
+}
+
+// Configure generated projects; no per-target build scripts are required.
+targets.each { minecraft, target ->
+    ["fabric", "neoforge"].each { loader ->
+        project(":versions:${loader}-${minecraft}") {
+            ext.minecraftTarget = minecraft
+            ext.modLoader = loader
+            if (loader == "fabric") {
+                pluginManager.apply(target.remappedFabric
+                    ? "net.fabricmc.fabric-loom-remap"
+                    : "net.fabricmc.fabric-loom")
+            } else {
+                pluginManager.apply("java-library")
+                pluginManager.apply("net.neoforged.moddev")
+            }
+            pluginManager.apply("maven-publish")
+            apply from: rootProject.file("gradle/${loader}-target.gradle")
+        }
+    }
+}
+
+def distributableJars = {
+    targets.collectMany { minecraft, target ->
+        ["fabric", "neoforge"].collect { loader ->
+            def module = project(":versions:${loader}-${minecraft}")
+            def jarTask = loader == "fabric" && target.remappedFabric ? "remapJar" : "jar"
+            [minecraft: minecraft, loader: loader, target: target,
+             file: module.tasks.named(jarTask).get().archiveFile.get().asFile]
+        }
+    }
+}
+
+tasks.register("verifyArtifacts") {
+    group = "verification"
+    description = "Checks metadata, entrypoints, icons, and bytecode in all built JARs."
+    dependsOn("buildAll")
+    doLast {
+        def require = { boolean condition, String message ->
+            if (!condition) throw new GradleException(message)
+        }
+        distributableJars().each { artifact ->
+            require(artifact.file.isFile(), "Missing JAR: ${artifact.file}")
+            new ZipFile(artifact.file).withCloseable { archive ->
+                def readText = { String path ->
+                    def entry = archive.getEntry(path)
+                    require(entry != null, "${artifact.file.name}: missing ${path}")
+                    archive.getInputStream(entry).withCloseable { it.getText("UTF-8") }
+                }
+                def packagePath = rootProject.mod_group.replace(".", "/")
+                def commonClass = archive.getEntry("${packagePath}/ExampleMod.class")
+                require(commonClass != null, "${artifact.file.name}: missing common initializer")
+                archive.getInputStream(commonClass).withCloseable { stream ->
+                    def data = new DataInputStream(stream)
+                    require(data.readInt() == (int) 0xCAFEBABE, "Invalid Java class header")
+                    data.readUnsignedShort()
+                    require(data.readUnsignedShort() == artifact.target.javaVersion + 44,
+                        "${artifact.file.name}: incorrect Java bytecode version")
+                }
+                require(archive.getEntry("assets/${rootProject.mod_id}/icon.png") != null,
+                    "${artifact.file.name}: missing icon")
+                require(archive.getEntry("LICENSE") != null, "${artifact.file.name}: missing license")
+                def mixins = new JsonSlurper().parseText(readText("${rootProject.mod_id}.mixins.json"))
+                require(mixins.package == "${rootProject.mod_group}.mixin", "Incorrect Mixin package")
+                require(mixins.compatibilityLevel == artifact.target.mixinJava, "Incorrect Mixin Java level")
+                def expectedVersion = "${rootProject.mod_version}+${artifact.minecraft}-${artifact.loader}"
+                if (artifact.loader == "fabric") {
+                    def metadata = new JsonSlurper().parseText(readText("fabric.mod.json"))
+                    require(metadata.id == rootProject.mod_id, "Incorrect Fabric mod ID")
+                    require(metadata.version == expectedVersion, "Incorrect Fabric version")
+                    require(metadata.depends.minecraft == artifact.target.minecraftRange, "Incorrect Fabric target")
+                    require(metadata.depends.java == ">=${artifact.target.javaVersion}", "Incorrect Fabric Java requirement")
+                    metadata.entrypoints.values().flatten().each { entrypoint ->
+                        require(archive.getEntry(entrypoint.replace(".", "/") + ".class") != null,
+                            "Missing Fabric entrypoint: ${entrypoint}")
+                    }
+                } else {
+                    def metadata = readText("META-INF/neoforge.mods.toml")
+                    require(metadata.contains('modId="' + rootProject.mod_id + '"'), "Incorrect NeoForge mod ID")
+                    require(metadata.contains('version="' + expectedVersion + '"'), "Incorrect NeoForge version")
+                    require(metadata.contains('versionRange="' + artifact.target.minecraftNeoRange + '"'),
+                        "Incorrect NeoForge Minecraft target")
+                    require(!metadata.contains('\${'), "Unexpanded NeoForge metadata")
+                    ["ExampleModNeoForge", "ExampleModNeoForgeClient"].each { entrypoint ->
+                        require(archive.getEntry("${packagePath}/neoforge/${entrypoint}.class") != null,
+                            "Missing NeoForge entrypoint: ${entrypoint}")
+                    }
+                }
+            }
+            logger.lifecycle("Verified ${artifact.file.name}")
+        }
+    }
+}
+
+tasks.register("collectArtifacts", Sync) {
+    group = "distribution"
+    description = "Collects the distributable JARs without publishing them."
+    dependsOn("verifyArtifacts")
+    from { distributableJars().collect { it.file } }
+    into layout.buildDirectory.dir("distributions")
+}
+
+tasks.register("collectModrinthArtifacts", Sync) {
+    group = "distribution"
+    description = "Collects verified Modrinth upload JARs without publishing them."
+    dependsOn("verifyArtifacts")
+    from { distributableJars().collect { it.file } }
+    into layout.buildDirectory.dir("modrinth")
+}

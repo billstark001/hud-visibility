@@ -1,0 +1,26 @@
+name: Build release bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew testAll collectArtifacts --no-parallel --stacktrace
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-bundle
+          path: build/distributions/*.jar
+          if-no-files-found: error

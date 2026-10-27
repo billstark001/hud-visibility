@@ -1,0 +1,64 @@
+def target = rootProject.ext.targets[project.ext.minecraftTarget]
+
+apply from: rootProject.file("gradle/common-target.gradle")
+
+loom {
+    mods {
+        "${rootProject.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+    runs {
+        client {
+            client()
+            configName = "Minecraft Client Fabric ${target.minecraft}"
+            vmArgs(target.clientJvmArgs ?: [])
+            getGenerateRunConfig().set(true)
+            runDir = rootProject.file("run/fabric-${target.minecraft}").absolutePath
+        }
+        server {
+            server()
+            configName = "Minecraft Server Fabric ${target.minecraft}"
+            getGenerateRunConfig().set(true)
+            runDir = rootProject.file("run/fabric-${target.minecraft}-server").absolutePath
+        }
+    }
+}
+
+// Loom's IDEA template otherwise leaves the JRE unspecified.
+tasks.named("ideaSyncTask").configure {
+    dependsOn(rootProject.tasks.named("cleanIdeaRunConfigurations"))
+    doLast {
+        def moduleMarker = "<module name=\"${rootProject.name}.versions.fabric-${target.minecraft}.main\""
+        def runConfigurationsDirectory = rootProject.file(".idea/runConfigurations")
+        if (!runConfigurationsDirectory.isDirectory()) return
+
+        fileTree(runConfigurationsDirectory) {
+            include "Minecraft_Client_Fabric_*fabric-${target.minecraft}.xml"
+            include "Minecraft_Server_Fabric_*fabric-${target.minecraft}.xml"
+        }.files.each { configuration ->
+            def lines = configuration.readLines("UTF-8").findAll {
+                !it.contains('name="ALTERNATIVE_JRE_PATH"') &&
+                    !it.contains('name="ALTERNATIVE_JRE_PATH_ENABLED"')
+            }
+            if (!lines.any { it.contains(moduleMarker) }) return
+            def index = lines.findIndexOf { it.contains("<configuration ") }
+            if (index < 0) throw new GradleException("Invalid IDEA configuration: ${configuration}")
+            lines.add(index + 1, "    <option name=\"ALTERNATIVE_JRE_PATH_ENABLED\" value=\"true\" />")
+            lines.add(index + 1, "    <option name=\"ALTERNATIVE_JRE_PATH\" value=\"${target.javaVersion}\" />")
+            configuration.setText(lines.join(System.lineSeparator()) + System.lineSeparator(), "UTF-8")
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${target.minecraft}"
+    if (target.remappedFabric) {
+        mappings loom.officialMojangMappings()
+        modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${target.fabricApi}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${target.fabricApi}"
+    }
+}
